@@ -7,6 +7,7 @@ const state = {
   rounds: 10,
   doubleOut: false,
   gameState: null,
+  activeGameState: null,
   boardView: "dartboard",
   themeIndex: 0,
   lastTurnId: null,
@@ -38,6 +39,7 @@ const gameRoundsBottom = document.getElementById("game-rounds-bottom");
 const dartCountBottom = document.getElementById("dart-count-bottom");
 const scoreboard = document.getElementById("scoreboard");
 const outComboList = document.getElementById("out-combo-list");
+const outCombosPanel = document.querySelector(".out-combos");
 const cricketBoard = document.getElementById("cricket-board");
 const boardViewBtn = document.getElementById("board-view-btn");
 const missBtn = document.getElementById("miss-btn");
@@ -100,7 +102,7 @@ function playWhoosh(isBull) {
   oscillator.frequency.value = isBull ? 520 : 260;
   const now = audioCtx.currentTime;
   gainNode.gain.setValueAtTime(0.0001, now);
-  gainNode.gain.linearRampToValueAtTime(isBull ? 0.18 : 0.105, now + 0.02);
+  gainNode.gain.linearRampToValueAtTime(isBull ? 0.18 : 0.13125, now + 0.02);
   gainNode.gain.exponentialRampToValueAtTime(0.0001, now + (isBull ? 0.35 : 0.22));
 
   oscillator.connect(gainNode).connect(audioCtx.destination);
@@ -115,7 +117,7 @@ function playClick() {
   oscillator.frequency.value = 240;
   const now = audioCtx.currentTime;
   gainNode.gain.setValueAtTime(0.0001, now);
-  gainNode.gain.linearRampToValueAtTime(0.06, now + 0.01);
+  gainNode.gain.linearRampToValueAtTime(0.075, now + 0.01);
   gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
   oscillator.connect(gainNode).connect(audioCtx.destination);
   oscillator.start();
@@ -361,6 +363,12 @@ function renderGameState() {
     game.status === "in_progress" && currentRound >= game.rounds
   );
 
+  if (game.status === "in_progress") {
+    state.activeGameState = gameState;
+  } else if (state.activeGameState?.game?.id === game.id) {
+    state.activeGameState = null;
+  }
+
   scoreboard.innerHTML = "";
   players.forEach((player) => {
     const row = document.createElement("div");
@@ -377,6 +385,9 @@ function renderGameState() {
     scoreboard.appendChild(row);
   });
 
+  if (outCombosPanel) {
+    outCombosPanel.classList.toggle("hidden", game.mode === "cricket");
+  }
   outComboList.innerHTML = "";
   if (gameState.outCombos.length === 0) {
     const li = document.createElement("li");
@@ -413,7 +424,7 @@ function renderGameState() {
 
 function updateBackToGame() {
   const hasActiveGame =
-    state.gameState && state.gameState.game?.status === "in_progress";
+    state.activeGameState && state.activeGameState.game?.status === "in_progress";
   if (hasActiveGame && state.screen !== "game") {
     backToGameBtn.classList.remove("hidden");
   } else {
@@ -867,28 +878,31 @@ function initDartboard() {
   window.addEventListener("resize", () => {
     redrawDartboard();
   });
-  dartboard.addEventListener("pointerdown", (event) => {
+  dartboard.addEventListener("pointerdown", async (event) => {
     if (isBoardLocked) return;
     const rect = dartboard.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     const segment = getSegmentForPoint(x, y);
     if (!segment || !state.gameState) return;
-    ensureAudioRunning().then(() => {
+    setBoardLocked(true);
+    try {
+      await ensureAudioRunning();
       if (segment === "MISS") {
         playMiss();
       } else {
         const isBull = segment === "SB" || segment === "DB";
         playWhoosh(isBull);
       }
-    });
-    postJson("/api/throw", {
-      gameId: state.gameState.game.id,
-      segment
-    }).then((data) => {
+      const data = await postJson("/api/throw", {
+        gameId: state.gameState.game.id,
+        segment
+      });
       state.gameState = data;
       renderGameState();
-    });
+    } finally {
+      setBoardLocked(false);
+    }
   });
 }
 
@@ -1037,7 +1051,7 @@ function getSegmentForPoint(x, y) {
 
 function toggleBoardView(view) {
   state.boardView = view;
-  boardViewBtn.textContent = view === "dartboard" ? "Scores" : "Dartboard";
+  boardViewBtn.textContent = view === "dartboard" ? "Match" : "Dartboard";
   if (view === "dartboard") {
     dartboard.classList.remove("hidden");
     boardWrapper.classList.remove("hidden");
@@ -1176,19 +1190,22 @@ function init() {
     toggleBoardView(nextView);
   });
 
-  missBtn.addEventListener("click", () => {
+  missBtn.addEventListener("click", async () => {
     if (isBoardLocked) return;
     if (!state.gameState?.game?.id) return;
-    ensureAudioRunning().then(() => {
+    setBoardLocked(true);
+    try {
+      await ensureAudioRunning();
       playMiss();
-    });
-    postJson("/api/throw", {
-      gameId: state.gameState.game.id,
-      segment: "MISS"
-    }).then((data) => {
+      const data = await postJson("/api/throw", {
+        gameId: state.gameState.game.id,
+        segment: "MISS"
+      });
       state.gameState = data;
       renderGameState();
-    });
+    } finally {
+      setBoardLocked(false);
+    }
   });
 
   themeToggle.addEventListener("click", () => {
@@ -1204,9 +1221,19 @@ function init() {
   });
 
   backToGameBtn.addEventListener("click", () => {
-    if (state.gameState?.game?.status === "in_progress") {
-      showScreen("game");
-    }
+    if (!state.activeGameState?.game) return;
+    const gameId = state.activeGameState.game.id;
+    fetch(`/api/game/${gameId}`)
+      .then((res) => res.json())
+      .then((gameState) => {
+        state.gameState = gameState;
+        state.activeGameState = gameState.game?.status === "in_progress" ? gameState : null;
+        renderGameState();
+      })
+      .catch(() => {
+        state.gameState = state.activeGameState;
+        renderGameState();
+      });
   });
 
   fetch("/api/state")
@@ -1214,8 +1241,10 @@ function init() {
     .then((data) => {
       if (data.game) {
         state.gameState = data;
+        state.activeGameState = data;
         renderGameState();
       } else {
+        state.activeGameState = null;
         showScreen("setup");
       }
       updateBackToGame();
