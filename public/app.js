@@ -311,10 +311,14 @@ function renderGameState() {
     const row = document.createElement("div");
     row.className = "score-row";
     if (player.id === currentPlayer.id) row.classList.add("active");
-    row.innerHTML = `
-      <span style="color:${player.color};font-weight:600;">${player.name}</span>
-      <span>${player.score}</span>
-    `;
+    const nameSpan = document.createElement("span");
+    nameSpan.style.color = player.color;
+    nameSpan.style.fontWeight = "600";
+    nameSpan.textContent = player.name;
+    const scoreSpan = document.createElement("span");
+    scoreSpan.textContent = `${player.score}`;
+    row.appendChild(nameSpan);
+    row.appendChild(scoreSpan);
     scoreboard.appendChild(row);
   });
 
@@ -475,14 +479,24 @@ function renderPodium() {
     const placeClass =
       winner.place === 1 ? "first" : winner.place === 2 ? "second" : "third";
     card.className = `podium-card ${placeClass}`;
-    card.innerHTML = `
-      <div class="podium-top">
-        <div class="place">#${winner.place}</div>
-        <div style="color:${winner.color};font-size:22px;">${winner.name}</div>
-        <div>${winner.score} pts</div>
-      </div>
-      <div class="podium-base"></div>
-    `;
+    const top = document.createElement("div");
+    top.className = "podium-top";
+    const place = document.createElement("div");
+    place.className = "place";
+    place.textContent = `#${winner.place}`;
+    const name = document.createElement("div");
+    name.style.color = winner.color;
+    name.style.fontSize = "22px";
+    name.textContent = winner.name;
+    const score = document.createElement("div");
+    score.textContent = `${winner.score} pts`;
+    top.appendChild(place);
+    top.appendChild(name);
+    top.appendChild(score);
+    const base = document.createElement("div");
+    base.className = "podium-base";
+    card.appendChild(top);
+    card.appendChild(base);
     podium.appendChild(card);
   });
   renderPodiumChart(game, sortedPlayers, state.gameState.turns || []);
@@ -747,16 +761,28 @@ function loadHistory() {
         const podium = entry.summary.podium
           .map((winner) => `#${winner.place} ${winner.name} (${winner.score})`)
           .join(" · ");
-        card.innerHTML = `
-          <div>
-            <div>${title} · Rounds ${entry.rounds}</div>
-            <div>${podium}</div>
-            <div style="opacity:0.7;">${new Date(entry.created_at).toLocaleString()}</div>
-          </div>
-          <div class="history-actions">
-            <button class="secondary-button delete-history" data-game="${entry.game_id}">Delete</button>
-          </div>
-        `;
+        const details = document.createElement("div");
+        const line1 = document.createElement("div");
+        line1.textContent = `${title} · Rounds ${entry.rounds}`;
+        const line2 = document.createElement("div");
+        line2.textContent = podium;
+        const line3 = document.createElement("div");
+        line3.style.opacity = "0.7";
+        line3.textContent = new Date(entry.created_at).toLocaleString();
+        details.appendChild(line1);
+        details.appendChild(line2);
+        details.appendChild(line3);
+
+        const actions = document.createElement("div");
+        actions.className = "history-actions";
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "secondary-button delete-history";
+        deleteButton.dataset.game = entry.game_id;
+        deleteButton.textContent = "Delete";
+        actions.appendChild(deleteButton);
+
+        card.appendChild(details);
+        card.appendChild(actions);
         historyList.appendChild(card);
       });
       historyList.querySelectorAll(".delete-history").forEach((btn) => {
