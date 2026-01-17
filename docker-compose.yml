@@ -1,0 +1,13 @@
+version: "3.9"
+services:
+  dartmania:
+    build: .
+    ports:
+      - "8003:8003"
+    environment:
+      - DB_PATH=/data/dartmania.sqlite
+    volumes:
+      - dartmania-data:/data
+
+volumes:
+  dartmania-data:
