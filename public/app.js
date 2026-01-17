@@ -376,7 +376,6 @@ function renderGameState() {
     if (player.id === currentPlayer.id) row.classList.add("active");
     const nameSpan = document.createElement("span");
     nameSpan.style.color = player.color;
-    nameSpan.style.fontWeight = "600";
     nameSpan.textContent = player.name;
     const scoreSpan = document.createElement("span");
     scoreSpan.textContent = `${player.score}`;

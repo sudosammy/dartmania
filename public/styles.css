@@ -12,6 +12,10 @@ body {
   min-height: 100vh;
 }
 
+h3 {
+  margin: 0 0 1em 0;
+}
+
 body.final-round::before {
   content: "";
   position: fixed;
@@ -366,8 +370,9 @@ h1 {
 }
 
 .active-name {
-  font-size: 24px;
+  font-size: 26px;
   margin-bottom: 6px;
+  font-weight: 700;
 }
 
 .active-score {
@@ -379,9 +384,8 @@ h1 {
   padding: 14px 18px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.12);
-  font-size: 20px;
+  font-size: 24px;
   min-width: 140px;
-  text-align: center;
 }
 
 .player-meta {
@@ -541,7 +545,7 @@ body.cricket-view .cricket-board {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .scoreboard {
