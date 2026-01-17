@@ -44,6 +44,7 @@ body.final-round::before {
   background: linear-gradient(90deg, #301753, #0e1b5b);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
+  gap: 12px;
 }
 
 .brand {
@@ -66,6 +67,10 @@ body.final-round::before {
 .nav-actions {
   display: flex;
   gap: 12px;
+}
+
+.theme-nav-button {
+  min-width: 0;
 }
 
 .top-game-mode {
@@ -370,11 +375,6 @@ h1 {
   font-weight: 700;
 }
 
-.game-meta {
-  display: flex;
-  gap: 12px;
-}
-
 .info-card {
   padding: 14px 18px;
   border-radius: 16px;
@@ -411,14 +411,43 @@ body.cricket-view .player-meta {
   margin-top: -111px;
 }
 
+.board-stack {
+  width: min(70vh, 70vw);
+  min-width: 320px;
+  max-width: 850px;
+  position: relative;
+}
+
+.board-toggle-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.board-toggle-top .toggle-button {
+  margin-left: auto;
+}
+
 .board-wrapper {
   position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.board-wrapper.is-disabled {
+  pointer-events: none;
+  opacity: 0.6;
 }
 
 .miss-button {
   position: absolute;
-  left: 12px;
-  bottom: 24px;
+  left: 0px;
+  bottom: 0px;
   padding: 20px 36px;
   border-radius: 18px;
   border: none;
@@ -429,10 +458,6 @@ body.cricket-view .player-meta {
   box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
 }
 
-.board-toggle {
-  display: flex;
-  gap: 10px;
-}
 
 .toggle-button {
   padding: 20px 36px;
@@ -444,12 +469,16 @@ body.cricket-view .player-meta {
   font-size: 24px;
 }
 
-.toggle-button.active {
-  background: #ff4f7a;
-  box-shadow: 0 0 12px rgba(255, 79, 122, 0.6);
+.board-toggle-top .toggle-button {
+  background: linear-gradient(120deg, #4fd1ff, #7cff4f);
+  color: #001923;
+  box-shadow: 0 0 14px rgba(79, 209, 255, 0.55);
 }
 
+
 canvas#dartboard {
+  width: 100%;
+  height: 100%;
   background: radial-gradient(circle at center, #0c0a1e 0%, #101030 60%);
   border-radius: 50%;
   box-shadow: 0 0 30px rgba(255, 255, 255, 0.08);
@@ -496,7 +525,7 @@ body.cricket-view .cricket-footer {
 }
 
 body.cricket-view .cricket-board {
-  margin-top: 64px;
+  margin-top: 94px;
 }
 
 .cricket-board .cell.closed {
@@ -572,19 +601,20 @@ body.cricket-view .cricket-board {
 }
 
 .throw-item.throw-single {
-  background: rgba(79, 209, 255, 0.18);
+  background: rgba(232, 250, 231, 0.4);
 }
 
 .throw-item.throw-double {
-  background: rgba(255, 79, 122, 0.22);
+  background: rgba(91, 255, 79, 0.4);
 }
 
 .throw-item.throw-triple {
-  background: rgba(124, 255, 79, 0.2);
+  background: rgba(248, 45, 96, 0.4);
 }
 
 .throw-item.throw-bull {
-  background: rgba(255, 184, 79, 0.22);
+  background: rgba(255, 205, 92, 0.8);
+  color: #2b1a00;
 }
 
 .bust-overlay {
@@ -610,6 +640,9 @@ body.cricket-view .cricket-board {
   list-style: none;
   padding: 0;
   margin: 0;
+  columns: 2;
+  column-gap: 24px;
+  column-rule: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .out-combos li {
@@ -777,18 +810,6 @@ body.cricket-view .cricket-board {
   gap: 10px;
 }
 
-.theme-button {
-  min-width: 220px;
-  padding: 20px 36px;
-  font-size: 24px;
-  position: absolute;
-  bottom: 24px;
-}
-
-body.cricket-view .theme-button {
-  position: static;
-  margin: 16px 0 0 40px;
-}
 
 .rules-card {
   padding: 16px;

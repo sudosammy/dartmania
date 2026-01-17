@@ -142,13 +142,13 @@ async function getLatestInProgressGameId() {
   return row ? row.id : null;
 }
 
-async function getGameMeta(gameId) {
-  const db = await getDb();
+async function getGameMeta(gameId, dbOverride) {
+  const db = dbOverride || (await getDb());
   return db.get("SELECT * FROM games WHERE id = ?", [gameId]);
 }
 
-async function getPlayers(gameId) {
-  const db = await getDb();
+async function getPlayers(gameId, dbOverride) {
+  const db = dbOverride || (await getDb());
   return db.all(
     `SELECT gp.*, p.name, p.color
      FROM game_players gp
@@ -159,8 +159,8 @@ async function getPlayers(gameId) {
   );
 }
 
-async function getCricketMarks(gameId) {
-  const db = await getDb();
+async function getCricketMarks(gameId, dbOverride) {
+  const db = dbOverride || (await getDb());
   const rows = await db.all(`SELECT * FROM cricket_marks WHERE game_id = ?`, [
     gameId
   ]);
@@ -259,7 +259,7 @@ function hasCricketWinner(players, marks) {
   return closedPlayers.some((player) => player.score <= lowestScore);
 }
 
-async function finalizeGame(game, players) {
+async function finalizeGame(game, players, dbOverride) {
   const podium = getPodium(game, players);
   const summary = {
     podium,
@@ -268,7 +268,7 @@ async function finalizeGame(game, players) {
     rounds: game.rounds,
     finishedAt: now()
   };
-  const db = await getDb();
+  const db = dbOverride || (await getDb());
   await db.run(
     `UPDATE games
      SET status = 'completed', updated_at = ?, finished_at = ?, winner_snapshot = ?
@@ -284,8 +284,8 @@ async function finalizeGame(game, players) {
   return summary;
 }
 
-async function checkRoundsComplete(gameId, rounds) {
-  const db = await getDb();
+async function checkRoundsComplete(gameId, rounds, dbOverride) {
+  const db = dbOverride || (await getDb());
   const row = await db.get(
     `SELECT COUNT(*) as doneCount
      FROM game_players
@@ -299,13 +299,13 @@ async function checkRoundsComplete(gameId, rounds) {
   return row.doneCount === total.totalCount;
 }
 
-async function applySegmentInternal(gameId, segment, recordTurn) {
-  const game = await getGameMeta(gameId);
+async function applySegmentInternal(gameId, segment, recordTurn, dbOverride) {
+  const game = await getGameMeta(gameId, dbOverride);
   if (!game || game.status !== "in_progress") {
     return null;
   }
 
-  const players = await getPlayers(gameId);
+  const players = await getPlayers(gameId, dbOverride);
   const currentPlayer = players[game.current_player_index];
   const info = segmentInfo(segment);
   const target = parseFormat(game.format);
@@ -363,7 +363,7 @@ async function applySegmentInternal(gameId, segment, recordTurn) {
   const opponentScoreUpdates = [];
 
   if (game.mode === "cricket") {
-    const cricket = await getCricketMarks(gameId);
+    const cricket = await getCricketMarks(gameId, dbOverride);
     const segmentKey =
       segment === "SB" || segment === "DB"
         ? "BULL"
@@ -415,7 +415,7 @@ async function applySegmentInternal(gameId, segment, recordTurn) {
     endTurn = true;
   }
 
-  await withTransaction(async (db) => {
+  const performWrites = async (db) => {
     if (recordTurn) {
       await db.run(
         `INSERT INTO turns
@@ -490,23 +490,31 @@ async function applySegmentInternal(gameId, segment, recordTurn) {
         [dartsThrown + 1, createdAt, gameId]
       );
     }
-  });
+  };
 
-  let updatedGame = await getGameMeta(gameId);
-  const updatedPlayers = await getPlayers(gameId);
+  if (dbOverride) {
+    await performWrites(dbOverride);
+  } else {
+    await withTransaction(async (db) => {
+      await performWrites(db);
+    });
+  }
+
+  let updatedGame = await getGameMeta(gameId, dbOverride);
+  const updatedPlayers = await getPlayers(gameId, dbOverride);
 
   if (finished) {
-    await finalizeGame(updatedGame, updatedPlayers);
+    await finalizeGame(updatedGame, updatedPlayers, dbOverride);
   } else if (updatedGame.mode === "cricket") {
-    const updatedMarks = await getCricketMarks(gameId);
+    const updatedMarks = await getCricketMarks(gameId, dbOverride);
     if (hasCricketWinner(updatedPlayers, updatedMarks)) {
-      await finalizeGame(updatedGame, updatedPlayers);
+      await finalizeGame(updatedGame, updatedPlayers, dbOverride);
     }
   } else if (
     updatedGame.rounds > 0 &&
-    (await checkRoundsComplete(gameId, updatedGame.rounds))
+    (await checkRoundsComplete(gameId, updatedGame.rounds, dbOverride))
   ) {
-    await finalizeGame(updatedGame, updatedPlayers);
+    await finalizeGame(updatedGame, updatedPlayers, dbOverride);
   }
 
   return true;
@@ -518,14 +526,14 @@ async function applyThrow(gameId, segment) {
   return getGameState(gameId);
 }
 
-async function resetGameState(gameId) {
-  const game = await getGameMeta(gameId);
-  const players = await getPlayers(gameId);
+async function resetGameState(gameId, dbOverride) {
+  const game = await getGameMeta(gameId, dbOverride);
+  const players = await getPlayers(gameId, dbOverride);
   const target = parseFormat(game.format);
   const initialScore =
     game.mode === "countdown" ? target || 301 : game.mode === "countup" ? 0 : 0;
 
-  await withTransaction(async (db) => {
+  const performReset = async (db) => {
     await db.run(`DELETE FROM history WHERE game_id = ?`, [gameId]);
     for (const player of players) {
       await db.run(
@@ -549,21 +557,30 @@ async function resetGameState(gameId) {
        WHERE id = ?`,
       [now(), gameId]
     );
-  });
+  };
+
+  if (dbOverride) {
+    await performReset(dbOverride);
+  } else {
+    await withTransaction(async (db) => {
+      await performReset(db);
+    });
+  }
 }
 
 async function replayTurns(gameId) {
-  await resetGameState(gameId);
-  const db = await getDb();
-  const turns = await db.all(
-    `SELECT * FROM turns
-     WHERE game_id = ?
-     ORDER BY created_at ASC`,
-    [gameId]
-  );
-  for (const turn of turns) {
-    await applySegmentInternal(gameId, turn.segment, false);
-  }
+  await withTransaction(async (db) => {
+    await resetGameState(gameId, db);
+    const turns = await db.all(
+      `SELECT * FROM turns
+       WHERE game_id = ?
+       ORDER BY created_at ASC`,
+      [gameId]
+    );
+    for (const turn of turns) {
+      await applySegmentInternal(gameId, turn.segment, false, db);
+    }
+  });
 }
 
 async function undoThrow(gameId) {

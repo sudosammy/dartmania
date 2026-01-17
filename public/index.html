@@ -9,6 +9,7 @@
   <body>
     <div id="app">
       <header class="topbar">
+        <button id="theme-toggle" class="nav-button theme-nav-button">Theme: Classic</button>
         <div class="brand">
         </div>
         <div id="top-game-mode" class="top-game-mode"></div>
@@ -88,13 +89,14 @@
 
           <div class="game-content">
             <div class="dartboard-panel">
-              <div class="board-toggle">
-                <button id="board-view-btn" class="toggle-button active">Dartboard</button>
-                <button id="cricket-view-btn" class="toggle-button">Cricket</button>
-              </div>
-              <div class="board-wrapper">
-                <canvas id="dartboard" width="850" height="850"></canvas>
-                <button id="miss-btn" class="miss-button">Miss!</button>
+              <div class="board-stack">
+                <div class="board-toggle-top">
+                  <button id="board-view-btn" class="toggle-button">Cricket</button>
+                </div>
+                <div class="board-wrapper">
+                  <canvas id="dartboard"></canvas>
+                  <button id="miss-btn" class="miss-button">Miss!</button>
+                </div>
               </div>
               <div id="cricket-board" class="cricket-board hidden"></div>
               <div id="cricket-footer" class="cricket-footer hidden">
@@ -115,7 +117,6 @@
               </div>
             </div>
           </div>
-          <button id="theme-toggle" class="secondary-button theme-button">Theme: Classic</button>
           <div id="bust-overlay" class="bust-overlay hidden">BUST!</div>
         </section>
 
