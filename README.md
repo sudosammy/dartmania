@@ -16,6 +16,13 @@ docker build -t dartmania .
 docker run --rm -p 8003:8003 -v dartmania-data:/data dartmania
 ```
 
+## Local Development
+Use Node.js 26 LTS, then install dependencies with `npm ci` and start the app
+with `npm start`.
+
+Run `npm test` to check HTTP routes, request validation, and the SQLite game
+lifecycle for countdown, countup, and cricket. Tests use a temporary database.
+
 ## UI Target
 Designed for a 1920x1080 touchscreen layout.
 

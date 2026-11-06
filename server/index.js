@@ -33,7 +33,7 @@ app.get("/api/game/:gameId", async (req, res) => {
 });
 
 app.post("/api/game", async (req, res) => {
-  const { players, mode, format, rounds, doubleOut } = req.body;
+  const { players, mode, format, rounds, doubleOut } = req.body || {};
   if (!players || players.length === 0) {
     return res.status(400).json({ error: "Players required" });
   }
@@ -48,7 +48,7 @@ app.post("/api/game", async (req, res) => {
 });
 
 app.post("/api/throw", async (req, res) => {
-  const { gameId, segment } = req.body;
+  const { gameId, segment } = req.body || {};
   if (!gameId || !segment) {
     return res.status(400).json({ error: "gameId and segment required" });
   }
@@ -56,13 +56,13 @@ app.post("/api/throw", async (req, res) => {
 });
 
 app.post("/api/undo", async (req, res) => {
-  const { gameId } = req.body;
+  const { gameId } = req.body || {};
   if (!gameId) return res.status(400).json({ error: "gameId required" });
   return res.json(await undoThrow(gameId));
 });
 
 app.post("/api/end", async (req, res) => {
-  const { gameId } = req.body;
+  const { gameId } = req.body || {};
   if (!gameId) return res.status(400).json({ error: "gameId required" });
   return res.json(await endGame(gameId));
 });
@@ -78,10 +78,11 @@ app.delete("/api/history/:gameId", async (req, res) => {
   return res.json({ ok: true });
 });
 
-app.get("*", (req, res) => {
+app.get("/{*splat}", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "public", "index.html"));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, (error) => {
+  if (error) throw error;
   console.log(`Dartmania running on port ${PORT}`);
 });
